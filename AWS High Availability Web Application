@@ -1,0 +1,108 @@
+# 🌐 AWS High Availability Web Application
+
+This repository documents the architecture and deployment of a **highly available web application on AWS** using:
+
+- **EC2 Auto Scaling Group (ASG)** for compute scalability  
+- **Application Load Balancer (ALB)** for traffic distribution  
+- **Amazon Route 53** for DNS & global routing  
+- **Amazon RDS** for relational database services (MySQL/PostgreSQL)  
+- **Amazon S3** for static asset storage and backups  
+
+---
+
+## 🏗️ Architecture Overview
+
+**Workflow:**
+
+1. Users access the app via a **Route 53 domain** (e.g., `example.com`).  
+2. Traffic is directed to the **Application Load Balancer (ALB)**.  
+3. ALB routes traffic to healthy EC2 instances in an **Auto Scaling Group** across multiple Availability Zones.  
+4. EC2 instances fetch static assets from **Amazon S3**.  
+5. Application data is stored in an **Amazon RDS** multi-AZ database.  
+
+---
+
+## ⚙️ Infrastructure Components
+
+### 1. EC2 Auto Scaling Group
+- Launch configuration/template with:
+  - AMI (with app code or bootstrap script)
+  - Instance type (e.g., `t3.medium`)
+  - Security groups (allow HTTP/HTTPS, DB access)
+- Scaling policies:
+  - Scale out at >70% CPU utilization
+  - Scale in at <30% CPU utilization
+- Deployed across **multiple AZs** for high availability
+
+### 2. Application Load Balancer (ALB)
+- Distributes traffic evenly across EC2 instances
+- Performs **health checks** on instances
+- Supports **HTTPS termination** with ACM certificates
+
+### 3. Route 53
+- Configured with:
+  - **A Record (Alias)** pointing to ALB
+  - **Failover / Latency-based routing** for global setups
+- Example: `www.example.com → ALB DNS Name`
+
+### 4. Amazon RDS (Multi-AZ)
+- Managed MySQL/PostgreSQL database
+- Multi-AZ deployment for HA & automatic failover
+- Security group allows inbound traffic only from EC2 instances
+- Automated backups enabled
+
+### 5. Amazon S3
+- Stores static assets (images, CSS, JS)
+- Public bucket (with CloudFront for CDN optional)
+- Versioning enabled for rollback
+- Used for:
+  - Static web assets
+  - User uploads
+  - Backup storage
+
+---
+
+## 📜 Example User Data Script for EC2
+
+```bash
+#!/bin/bash
+# Update packages
+sudo apt update -y
+
+# Install Nginx & PHP (for PHP-based apps)
+sudo apt install -y nginx php-fpm unzip
+
+# Install application code (from S3 bucket)
+aws s3 cp s3://my-webapp-bucket/latest.zip /var/www/html/
+unzip /var/www/html/latest.zip -d /var/www/html/
+
+# Restart services
+sudo systemctl restart nginx
+🔄 Deployment Steps
+Create S3 Bucket and upload static assets.
+
+Launch RDS Instance (Multi-AZ, automated backups).
+
+Create Launch Template with User Data to bootstrap app.
+
+Setup Auto Scaling Group across 2+ AZs.
+
+Create Application Load Balancer and target group linked to ASG.
+
+Configure Route 53 with domain pointing to ALB.
+
+Test Scaling by simulating load (e.g., ab or locust).
+
+✅ Best Practices
+Use CloudFront with S3 for faster content delivery.
+
+Enable SSL/TLS via AWS Certificate Manager (ACM).
+
+Use IAM roles for secure EC2 → S3/RDS access.
+
+Enable CloudWatch metrics & alarms for monitoring.
+
+Implement WAF (Web Application Firewall) for security.
+
+Automate infrastructure using Terraform / CloudFormation.
+
